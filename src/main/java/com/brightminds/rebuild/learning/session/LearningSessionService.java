@@ -12,7 +12,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class LearningSessionService {
 
-    private final ConcurrentMap<String, LearningSessionResponse> activeSessions = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, LearningSessionResponse> activeSessionsByKey = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, LearningSessionResponse> sessionsById = new ConcurrentHashMap<>();
 
     public LearningSessionResponse create(CreateLearningSessionRequest request) {
         String childName = request.childName().trim();
@@ -27,9 +28,18 @@ public class LearningSessionService {
                 "ACTIVE",
                 Instant.now());
 
-        LearningSessionResponse existing = activeSessions.putIfAbsent(uniquenessKey, session);
+        LearningSessionResponse existing = activeSessionsByKey.putIfAbsent(uniquenessKey, session);
         if (existing != null) {
             throw new BusinessException(ErrorCode.SESSION_ALREADY_EXISTS);
+        }
+        sessionsById.put(session.sessionId(), session);
+        return session;
+    }
+
+    public LearningSessionResponse getRequired(String sessionId) {
+        LearningSessionResponse session = sessionsById.get(sessionId);
+        if (session == null) {
+            throw new BusinessException(ErrorCode.SESSION_NOT_FOUND);
         }
         return session;
     }

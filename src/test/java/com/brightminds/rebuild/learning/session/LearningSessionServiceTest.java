@@ -33,4 +33,20 @@ class LearningSessionServiceTest {
                 .extracting(exception -> ((BusinessException) exception).errorCode())
                 .isEqualTo(ErrorCode.SESSION_ALREADY_EXISTS);
     }
+
+    @Test
+    void shouldFindCreatedSessionById() {
+        LearningSessionResponse created = learningSessionService.create(
+                new CreateLearningSessionRequest("小明", 6, "恐龙"));
+
+        assertThat(learningSessionService.getRequired(created.sessionId())).isEqualTo(created);
+    }
+
+    @Test
+    void shouldRejectUnknownSessionId() {
+        assertThatThrownBy(() -> learningSessionService.getRequired("missing"))
+                .isInstanceOf(BusinessException.class)
+                .extracting(exception -> ((BusinessException) exception).errorCode())
+                .isEqualTo(ErrorCode.SESSION_NOT_FOUND);
+    }
 }

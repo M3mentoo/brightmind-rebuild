@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
     INVALID_REQUEST(40001, HttpStatus.BAD_REQUEST, "请求参数不合法"),
     MALFORMED_REQUEST(40002, HttpStatus.BAD_REQUEST, "请求体格式错误"),
+    SESSION_NOT_FOUND(40401, HttpStatus.NOT_FOUND, "学习会话不存在"),
     SESSION_ALREADY_EXISTS(40901, HttpStatus.CONFLICT, "相同儿童和主题的学习会话已存在"),
     INTERNAL_ERROR(50000, HttpStatus.INTERNAL_SERVER_ERROR, "服务器内部错误");
 
