@@ -3,7 +3,7 @@ package com.brightminds.rebuild.learning.session;
 import com.brightminds.rebuild.common.response.ApiResponse;
 import com.brightminds.rebuild.learning.chat.ChatMessageRequest;
 import com.brightminds.rebuild.learning.chat.ChatStreamPayload;
-import com.brightminds.rebuild.learning.chat.SimulatedTutorService;
+import com.brightminds.rebuild.learning.chat.TutorChatService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -21,13 +21,13 @@ import reactor.core.publisher.Flux;
 public class LearningSessionController {
 
     private final LearningSessionService learningSessionService;
-    private final SimulatedTutorService simulatedTutorService;
+    private final TutorChatService tutorChatService;
 
     public LearningSessionController(
             LearningSessionService learningSessionService,
-            SimulatedTutorService simulatedTutorService) {
+            TutorChatService tutorChatService) {
         this.learningSessionService = learningSessionService;
-        this.simulatedTutorService = simulatedTutorService;
+        this.tutorChatService = tutorChatService;
     }
 
     @PostMapping
@@ -44,6 +44,6 @@ public class LearningSessionController {
             @PathVariable String sessionId,
             @Valid @RequestBody ChatMessageRequest request) {
         LearningSessionResponse session = learningSessionService.getRequired(sessionId);
-        return simulatedTutorService.streamReply(session, request.message());
+        return tutorChatService.streamReply(session, request.message());
     }
 }

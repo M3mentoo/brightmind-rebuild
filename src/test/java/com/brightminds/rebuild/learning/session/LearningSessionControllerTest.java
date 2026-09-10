@@ -9,7 +9,7 @@ import com.brightminds.rebuild.common.exception.BusinessException;
 import com.brightminds.rebuild.common.exception.ErrorCode;
 import com.brightminds.rebuild.common.exception.GlobalExceptionHandler;
 import com.brightminds.rebuild.learning.chat.ChatStreamPayload;
-import com.brightminds.rebuild.learning.chat.SimulatedTutorService;
+import com.brightminds.rebuild.learning.chat.TutorChatService;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,7 +32,7 @@ class LearningSessionControllerTest {
     private LearningSessionService learningSessionService;
 
     @MockitoBean
-    private SimulatedTutorService simulatedTutorService;
+    private TutorChatService tutorChatService;
 
     @Test
     void shouldCreateLearningSession() {
@@ -96,9 +96,9 @@ class LearningSessionControllerTest {
     void shouldStreamTutorEventsForExistingSession() {
         LearningSessionResponse session = new LearningSessionResponse(
                 "session-1", "小明", 6, "恐龙", "ACTIVE", Instant.parse("2026-09-10T08:00:00Z"));
-        ChatStreamPayload payload = new ChatStreamPayload("session-1", "message-1", "先观察");
+        ChatStreamPayload payload = new ChatStreamPayload("session-1", "message-1", "先观察", null);
         when(learningSessionService.getRequired("session-1")).thenReturn(session);
-        when(simulatedTutorService.streamReply(eq(session), eq("霸王龙有什么特点？")))
+        when(tutorChatService.streamReply(eq(session), eq("霸王龙有什么特点？")))
                 .thenReturn(Flux.just(ServerSentEvent.builder(payload)
                         .id("message-1")
                         .event("delta")
