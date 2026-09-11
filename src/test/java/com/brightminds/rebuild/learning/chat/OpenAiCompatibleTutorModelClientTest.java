@@ -7,9 +7,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.brightminds.rebuild.learning.session.LearningSessionResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
+import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -18,6 +20,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
+import reactor.test.StepVerifier;
 import reactor.netty.DisposableServer;
 import reactor.netty.http.server.HttpServer;
 
@@ -88,6 +91,55 @@ class OpenAiCompatibleTutorModelClientTest {
     }
 
     @Test
+    void shouldRetryTransientHttpFailureBeforeAnyDelta() {
+        AtomicInteger attempts = new AtomicInteger();
+        server = HttpServer.create()
+                .port(0)
+                .route(routes -> routes.post("/v1/chat/completions", (request, response) -> {
+                    if (attempts.incrementAndGet() == 1) {
+                        return response.status(HttpStatus.SERVICE_UNAVAILABLE.value()).send();
+                    }
+                    response.status(HttpStatus.OK.value());
+                    response.header(HttpHeaderNames.CONTENT_TYPE.toString(), MediaType.TEXT_EVENT_STREAM_VALUE);
+                    return response.sendString(Flux.just(
+                                    "data:{\"choices\":[{\"delta\":{\"content\":\"重试成功\"}}]}\n\n",
+                                    "data:[DONE]\n\n"))
+                            .then();
+                }))
+                .bindNow();
+
+        List<String> deltas = clientFor(server.port()).stream(prompt())
+                .collectList()
+                .block(Duration.ofSeconds(2));
+
+        assertThat(deltas).containsExactly("重试成功");
+        assertThat(attempts).hasValue(2);
+    }
+
+    @Test
+    void shouldNotRetryNetworkFailureAfterReceivingADelta() {
+        AtomicInteger attempts = new AtomicInteger();
+        server = HttpServer.create()
+                .port(0)
+                .route(routes -> routes.post("/v1/chat/completions", (request, response) -> {
+                    attempts.incrementAndGet();
+                    response.status(HttpStatus.OK.value());
+                    response.header(HttpHeaderNames.CONTENT_TYPE.toString(), MediaType.TEXT_EVENT_STREAM_VALUE);
+                    return response.sendString(Flux.concat(
+                                    Flux.just("data:{\"choices\":[{\"delta\":{\"content\":\"部分内容\"}}]}\n\n"),
+                                    Flux.error(new IOException("simulated connection interruption"))))
+                            .then();
+                }))
+                .bindNow();
+
+        StepVerifier.create(clientFor(server.port()).stream(prompt()))
+                .expectNext("部分内容")
+                .expectError()
+                .verify(Duration.ofSeconds(2));
+        assertThat(attempts).hasValue(1);
+    }
+
+    @Test
     void shouldFailFastWhenApiKeyIsMissing() {
         OpenAiCompatibleProperties properties = properties(8080);
         properties.setApiKey(" ");
@@ -108,6 +160,9 @@ class OpenAiCompatibleTutorModelClientTest {
         properties.setBaseUrl("http://127.0.0.1:" + port + "/v1");
         properties.setApiKey(FAKE_API_KEY);
         properties.setModel("qwen-plus");
+        properties.setConnectTimeout(Duration.ofSeconds(1));
+        properties.setMaxRetries(1);
+        properties.setRetryBackoff(Duration.ofMillis(1));
         return properties;
     }
 

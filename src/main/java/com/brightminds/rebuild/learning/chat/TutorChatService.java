@@ -3,7 +3,6 @@ package com.brightminds.rebuild.learning.chat;
 import com.brightminds.rebuild.learning.session.LearningSessionResponse;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
@@ -66,7 +65,8 @@ public class TutorChatService {
                     if (timedOut) {
                         LOGGER.warning("Tutor model stream timed out");
                     } else {
-                        LOGGER.log(Level.WARNING, "Tutor model stream failed", error);
+                        LOGGER.warning(() -> "Tutor model stream failed type="
+                                + error.getClass().getSimpleName());
                     }
                     String errorCode = timedOut ? "MODEL_TIMEOUT" : "MODEL_STREAM_ERROR";
                     String message = timedOut ? "导师响应超时，请稍后重试" : "导师暂时无法回答，请稍后重试";
